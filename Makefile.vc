@@ -1,0 +1,40 @@
+all: bchunk
+
+# For systems with Visual C++ (Visual C++ Command Prompt):
+CC = cl
+LD = link 
+CFLAGS = /Ox
+
+# For systems with a legacy CC:
+#CC = cc
+#LD = cc
+#CFLAGS = -O
+
+# For WinDIR install: Which install to use and where to put the files
+INSTALL = copy
+PREFIX  = $(WINDIR)
+BIN_DIR = $(PREFIX)
+MAN_DIR = $(PREFIX)
+
+.c.obj:
+	$(CC) $(CFLAGS) /c $<
+
+clean:
+	del /f *.obj *~ *.bak core
+distclean: clean
+	del /f bchunk.exe
+
+install: installbin installman
+installbin:
+	$(INSTALL) bchunk.exe $(BIN_DIR)
+installman:
+	$(INSTALL) bchunk.1   $(MAN_DIR)
+
+BITS = bchunk.obj getopt.obj
+
+bchunk: $(BITS)
+	$(LD) $(LDFLAGS) /out:bchunk.exe $(BITS)
+
+bchunk.obj:	bchunk.c
+
+getopt.obj: getopt.c getopt.h

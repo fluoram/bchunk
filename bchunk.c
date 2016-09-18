@@ -22,13 +22,27 @@
 #include <stdlib.h>
 #include <string.h>
 #include <errno.h>
-#if defined(_WIN32)
-#include "unistd.h"
+#include <stdint.h>
+
+/*
+16/09/18 Modifying for building bchunk 1.2.0 with Visual C++ 2010.
+
+Add getopt.h getopt.c
+Add strcasecmp definition
+Mod inttypes.h Anetinet/in.h -> winsock2.h
+Mod File open mode Text("r","b")->Binary("rb","wb")
+*/
+
+#ifdef _MSC_VER
+#include "getopt.h"
+#define strncasecmp _strnicmp
+#define strcasecmp _stricmp
 #else
-#include <unistd.h>
+#include <getopt.h>
 #endif
 
-#define VERSION "1.2.1"
+
+#define VERSION "1.2.0"
 #define USAGE "Usage: bchunk [-v] [-r] [-p (PSX)] [-w (wav)] [-s (swabaudio)]\n" \
         "         <image.bin> <image.cue> <basename>\n" \
 	"Example: bchunk foo.bin foo.cue foo\n" \
@@ -39,8 +53,12 @@
 	"  -w  Output audio files in WAV format\n" \
 	"  -s  swabaudio: swap byte order in audio tracks\n"
 	
-#define VERSTR	"binchunker for Windows, version " VERSION " by ...\n" \
-		"\tBased upon work by Heikki Hannikainen <hessu@hes.iki.fi>\n" \
+#define VERSTR	"binchunker for Unix, version " VERSION " by Heikki Hannikainen <hessu@hes.iki.fi>\n" \
+		"\tCreated with the kind help of Bob Marietta <marietrg@SLU.EDU>,\n" \
+		"\tpartly based on his Pascal (Delphi) implementation.\n" \
+		"\tSupport for MODE2/2352 ISO tracks thanks to input from\n" \
+		"\tGodmar Back <gback@cs.utah.edu>, Colas Nahaboo <Colas@Nahaboo.com>\n" \
+		"\tand Matthew Green <mrg@eterna.com.au>.\n" \
 		"\tReleased under the GNU GPL, version 2 or later (at your option).\n\n"
 
 #define CUELLEN 1024
@@ -56,22 +74,12 @@
  *	First let netinet's hton() functions decide if swapping should
  *	be done, then convert back.
  */
-
-#include <inttypes.h>
-
-#if defined(_WIN32)
-    #include "getopt.h"
-    #define snprintf _snprintf 
-    #define vsnprintf _vsnprintf 
-    #define strcasecmp _stricmp 
-    #define strncasecmp _strnicmp 
-    #define WIN32_LEAN_AND_MEAN 1
-    #pragma comment(lib, "Ws2_32.lib")
-    #include <winsock2.h>
-    #include <windows.h>
+#ifdef _MSC_VER
+#pragma comment(lib, "ws2_32")
+#include <winsock2.h>
 #else
-    #include <getopt.h> 
-    #include <netinet/in.h>
+#include <inttypes.h>
+#include <netinet/in.h>
 #endif
 
 #define bswap_16(x) \
@@ -361,6 +369,7 @@ int writetrack(FILE *bf, struct track_t *track, char *bname)
 				}
 			}
 		}
+
 		if (fwrite(&buf[track->bstart], track->bsize, 1, f) < 1) {
 			fprintf(stderr, " Could not write to track: %s\n", strerror(errno));
 			exit(4);
@@ -418,7 +427,7 @@ int main(int argc, char **argv)
 		return 2;
 	}
 	
-	if (!((cuef = fopen(cuefile, "rb")))) {
+	if (!((cuef = fopen(cuefile, "r")))) {
 		fprintf(stderr, "Could not open CUE %s: %s\n", cuefile, strerror(errno));
 		return 2;
 	}
@@ -504,14 +513,14 @@ int main(int argc, char **argv)
 	
 	printf("\n\n");
 	
-	for (track = tracks; (track); track = track->next) {
+	
+	printf("Writing tracks:\n\n");
+	for (track = tracks; (track); track = track->next)
 		writetrack(binf, track, basefile);
-    }
 		
 	fclose(binf);
 	fclose(cuef);
 	
-    printf("End of Conversion\n\n");
 	return 0;
 }
 
